@@ -889,24 +889,7 @@ document.addEventListener('touchstart', resumeAudioContext);
 
 /*let wordBank = [];  carica il file words.js*/
 
-// 🟢 Bottone maiuscolo/minuscolo
-window.addEventListener("DOMContentLoaded", () => {
-    const buttonBar = document.querySelector(".buttonBar") || document.body;
-    const toggleCaseBtn = document.createElement("button");
-    toggleCaseBtn.id = "toggleCaseBtn";
-    toggleCaseBtn.textContent = "🔠 minuscolo";
-    toggleCaseBtn.style.marginLeft = "10px";
-    buttonBar.appendChild(toggleCaseBtn);
 
-    toggleCaseBtn.addEventListener("click", () => {
-        uppercaseMode = !uppercaseMode;
-        toggleCaseBtn.textContent = uppercaseMode ? "🔠 minuscolo" : "🔡 MAIUSCOLO";
-
-        updateDisplayedText();
-        updateLetterImage(); // 🔥 aggiorna immagine
-    });
-
-});
 
 // 🌐 Imposta le voci italiane per speechSynthesis
 speechSynthesis.onvoiceschanged = () => {
