@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <title>Costruisci la Parola</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <input type="file" id="wordJsonLoader" accept=".json" />
+
+  <h2 id="wordTitle">Componi la parola</h2>
+
+  <!-- 🔤 Riquadro lettera iniziale -->
+  <div id="letterImageBox">
+    <img id="letterImage" src="" alt="Immagine lettera" />
+  </div>
+
+  <!-- 🖼️ Riquadro immagine parola -->
+  <div id="imageBox">
+    <img id="wordImage" src="" alt="Immagine parola" />
+  </div>
+
+  <!-- 🖼️ Riquadro audio-video -->
+  <div id="mediaBox">
+    <img id="mediaImage" style="display:none; max-width:120px;">
+
+    <!-- AUDIO INLINE -->
+    <audio id="wordAudio"
+           controls
+           controlslist="nodownload noplaybackrate noremoteplayback"
+           disablepictureinpicture
+           style="display:none;">
+    </audio>
+
+    <!-- VIDEO INLINE (FIX ANDROID) -->
+    <video id="wordVideo"
+           width="240"
+           height="180"
+           controls
+           playsinline
+           webkit-playsinline
+           disablepictureinpicture
+           controlslist="nodownload noremoteplayback"
+           muted
+           style="display:none;">
+    </video>
+  </div>
+
+  <div id="iconDisplay"></div>
+
+  <div class="menu" id="wordMenu"></div>
+
+  <div class="slots" id="slots"></div>
+
+  <div class="letters" id="letters"></div>
+
+  <!-- 🔤 Modalità Vocale mancante -->
+  <div id="vowelArea" style="display:none;">
+    <h3>Componi la vocale mancante</h3>
+    <div id="vowelSlots" class="slots"></div>
+    <div id="vowelLetters" class="letters"></div>
+    <button id="verifyVowelBtn">Verifica vocale</button>
+  </div>
+
+  <label for="voiceSelect">Voce:</label>
+  <select id="voiceSelect">
+    <option value="maschio">Maschile</option>
+    <option value="femmina">Femminile</option>
+  </select>
+
+  <button id="verifyBtn">Verifica</button>
+  <button id="listenBtn">🔊 Ascolta</button>
+  <button id="syllableSpeakBtn">🔊 Pronuncia sillabe</button>
+
+  <button id="magicBtn">🪄 Bacchetta magica</button>
+
+  <div id="syllableArea"></div>
+  <div id="syllableControls" style="display:none;"></div>
+
+  <div id="statusBar">
+    <div id="scoreStar">⭐ <span id="scoreDisplay">0</span></div>
+    <div id="mascot">🐥</div>
+  </div>
+
+  <div id="fireworksContainer"></div>
+
+  <script src="words.js"></script>
+  <script src="script.js"></script>
+
+  <!-- 🎉 CELEBRAZIONE CON VIDEO FINALE -->
+  <script>
+  function celebrate() {
+    const sound = new Audio("celebration.mp3");
+    sound.play().catch(() => {});
+
+    const overlay = document.createElement("div");
+    overlay.id = "celebration";
+    overlay.style.position = "fixed";
+    overlay.style.top = 0;
+    overlay.style.left = 0;
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.background = "rgba(255,255,255,0.95)";
+    overlay.style.display = "flex";
+    overlay.style.flexDirection = "column";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "10000";
+    overlay.innerHTML = `<h1 style="font-size:100px; color:#ff4081;">EVVIVA! 🎉</h1>`;
+    document.body.appendChild(overlay);
+
+    const logo = document.createElement("img");
+    logo.src = "igorproget-logo.png";
+    logo.alt = "IGORproget";
+    logo.id = "floatingLogo";
+    logo.style.width = "150px";
+    logo.style.position = "absolute";
+    logo.style.animation = "floatLogo 4s infinite";
+    overlay.appendChild(logo);
+
+    for (let i = 0; i < 80; i++) {
+      const star = document.createElement("div");
+      star.textContent = "⭐";
+      star.style.position = "absolute";
+      star.style.left = Math.random() * 100 + "vw";
+      star.style.top = -20 + "px";
+      star.style.fontSize = Math.random() * 20 + 20 + "px";
+      star.style.animation = `fall ${2 + Math.random() * 3}s linear forwards`;
+      star.style.pointerEvents = "none";
+      overlay.appendChild(star);
+    }
+
+    const btnContainer = document.createElement("div");
+    btnContainer.style.display = "flex";
+    btnContainer.style.alignItems = "center";
+    btnContainer.style.gap = "20px";
+    btnContainer.style.marginTop = "50px";
+
+    const restartBtn = document.createElement("button");
+    restartBtn.textContent = "🔄 Ricomincia";
+    restartBtn.style.fontSize = "24px";
+    restartBtn.style.padding = "10px 20px";
+    restartBtn.style.background = "#4caf50";
+    restartBtn.style.color = "white";
+    restartBtn.style.border = "none";
+    restartBtn.style.borderRadius = "8px";
+    restartBtn.style.cursor = "pointer";
+    restartBtn.style.opacity = "0";
+    restartBtn.style.transition = "opacity 1s";
+
+    restartBtn.addEventListener("click", () => {
+      document.body.removeChild(overlay);
+      location.reload();
+    });
+
+    overlay.appendChild(btnContainer);
+
+    setTimeout(() => {
+      restartBtn.style.opacity = "1";
+    }, 2000);
+
+    sound.addEventListener("ended", () => {
+      logo.style.animation = "none";
+      logo.style.position = "static";
+      logo.style.width = "70px";
+
+      btnContainer.appendChild(restartBtn);
+      btnContainer.appendChild(logo);
+
+      const videoBox = document.createElement("div");
+      videoBox.style.marginTop = "40px";
+      videoBox.style.display = "flex";
+      videoBox.style.justifyContent = "center";
+
+      const rewardVideo = document.createElement("video");
+      rewardVideo.src = "videos/Pitti.mp4";
+      rewardVideo.width = 420;
+      rewardVideo.controls = true;
+      rewardVideo.autoplay = true;
+
+      videoBox.appendChild(rewardVideo);
+      overlay.appendChild(videoBox);
+    });
+  }
+
+  const style = document.createElement("style");
+  style.textContent = `
+  @keyframes fall {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(100vh); opacity: 0; }
+  }
+  @keyframes floatLogo {
+    0% { top: 10%; left: 10%; }
+    25% { top: 20%; left: 70%; }
+    50% { top: 60%; left: 40%; }
+    75% { top: 30%; left: 80%; }
+    100% { top: 10%; left: 10%; }
+  }`;
+  document.head.appendChild(style);
+  </script>
+
+  <!-- Loader JSON -->
+  <script>
+    document.getElementById("wordJsonLoader").addEventListener("change", function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!Array.isArray(parsed)) throw new Error("Formato non valido");
+
+          const valid = parsed.filter(w => w.word && Array.isArray(w.syllables));
+          valid.forEach(w => { if (!w.icon) w.icon = "🔤"; });
+
+          wordBank = wordBank.concat(valid);
+          currentBatchStart = 0;
+          renderWordBatch();
+          addNavigationButtons();
+          alert(`✅ ${valid.length} nuove parole aggiunte!`);
+        } catch (err) {
+          alert("❌ Errore nel file JSON: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+  </script>
+
+  <!-- FIX INLINE MEDIA PER ANDROID -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const video = document.getElementById("wordVideo");
+      const audio = document.getElementById("wordAudio");
+
+      if (video) {
+        video.setAttribute("playsinline", "");
+        video.setAttribute("webkit-playsinline", "");
+        video.setAttribute("disablepictureinpicture", "");
+        video.setAttribute("controlslist", "nodownload noremoteplayback");
+      }
+
+      if (audio) {
+        audio.setAttribute("disablepictureinpicture", "");
+        audio.setAttribute("controlslist", "nodownload noplaybackrate noremoteplayback");
+      }
+    });
+  </script>
+
+</body>
+</html>
