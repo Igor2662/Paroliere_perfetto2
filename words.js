@@ -2,7 +2,7 @@ window.wordBank = [
   { 
     "word": "sole", 
     "syllables": ["so", "le"], 
-    "phoneticPC": ["sho", "le"], 
+    "phoneticPC": ["so", "le"], 
     "phoneticAndroid": ["so.", "le."], 
     "icon": "🌞" 
   },
