@@ -1,16 +1,4 @@
-// Funzione per sbloccare l'audio su Tablet/Smartphone
-function resumeAudioContext() {
-    if (speechSynthesis.speaking) return;
-    const utterance = new SpeechSynthesisUtterance("");
-    speechSynthesis.speak(utterance);
-    console.log("Audio sbloccato");
-    
-    // Rimuoviamo i listener dopo il primo sblocco
-    document.removeEventListener('click', resumeAudioContext);
-    document.removeEventListener('touchstart', resumeAudioContext);
-}
-document.addEventListener('click', resumeAudioContext);
-document.addEventListener('touchstart', resumeAudioContext);
+
 
 let currentWord = "";
 let slotCount = 0;
@@ -42,83 +30,133 @@ window.addEventListener("DOMContentLoaded", () => {
         updateLetterImage(); // 🔥 aggiorna immagine
     });
 
+// --- NUOVO: Selettore Modalità Lettura ---
+    const voiceModeSelect = document.createElement("select");
+    voiceModeSelect.id = "voiceModeSelect";
+    voiceModeSelect.style.marginLeft = "10px";
+    voiceModeSelect.innerHTML = `
+        <option value="auto">🤖 Auto</option>
+        <option value="pc">🖥️ PC</option>
+        <option value="android">📱 Android</option>
+        <option value="syllables">🧩 Sillabe pure</option>
+    `;
+    buttonBar.appendChild(voiceModeSelect);
+
 });
 
+function populateVoiceList() {
+    const voices = speechSynthesis.getVoices();
+
+    italianVoices = voices.filter(v => v.lang.toLowerCase().startsWith("it"));
+
+    const select = document.getElementById("voiceSelect");
+    select.innerHTML = "";
+
+    italianVoices.forEach((voice, index) => {
+        const option = document.createElement("option");
+        option.value = index;
+        //option.textContent = `${voice.name} (${voice.lang})`; stringa dati voce più lunga
+		option.textContent = cleanVoiceName(voice.name);
+        select.appendChild(option);
+    });
+
+    // fallback se non trova voci italiane
+    if (italianVoices.length === 0) {
+        voices.forEach((voice, index) => {
+            const option = document.createElement("option");
+            option.value = index;
+            option.textContent = `${voice.name} (${voice.lang})`;
+            select.appendChild(option);
+        });
+    }
+}
+
+function cleanVoiceName(name) {
+    return name
+        // rimuove brand
+        .replace(/^Microsoft\s*/i, "")
+        .replace(/^Google\s*/i, "")
+
+        // rimuove Desktop
+        .replace(/\s*Desktop/i, "")
+
+        // rimuove riferimenti lingua/paese
+        .replace(/\(?\bItalian\b.*\)?/i, "")
+        .replace(/\(?\bItalia\b.*\)?/i, "")
+        .replace(/\(?\bItaly\b.*\)?/i, "")
+        .replace(/\bit[-_]?IT\b/i, "")
+
+        // rimuove trattini e parentesi vuote
+        .replace(/[-()]/g, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+}
+
+
+function getAudioSyllables() {
+    if (!currentWordData) return [];
+    
+    const mode = document.getElementById("voiceModeSelect")?.value || "auto";
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const isAndroidDevice = /Android|Adr|Linux/i.test(ua);
+
+    if (mode === "android" || (mode === "auto" && isAndroidDevice)) {
+        return currentWordData.phoneticAndroid || currentWordData.syllables;
+    } else if (mode === "pc" || (mode === "auto" && !isAndroidDevice)) {
+        return currentWordData.phoneticPC || currentWordData.syllables;
+    } else {
+        return currentWordData.syllables;
+    }
+}
+
 // 🌐 Imposta le voci italiane per speechSynthesis
-speechSynthesis.onvoiceschanged = () => {
-    italianVoices = speechSynthesis.getVoices().filter(v => v.lang === "it-IT");
-};
+
 
 function getSelectedVoice() {
-    const selected = document.getElementById("voiceSelect").value;
-    const isMale = selected === "maschio";
-    const match = italianVoices.find(v =>
-        isMale ? /luciano|male|fred|paolo/i.test(v.name)
-               : /serena|silvia|female|francesca/i.test(v.name)
-    );
-    return match || italianVoices[0];
+    if (!italianVoices || italianVoices.length === 0) return null;
+
+    const selectedIndex = document.getElementById("voiceSelect").value;
+    return italianVoices[selectedIndex] || italianVoices[0];
 }
 
-function speak(text) {
-    if (!text) return;
 
-    // 1. Ferma tutto il parlato precedente
-    speechSynthesis.cancel();
-
-    // 2. Crea l'utterance
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "it-IT";
-    
-    // 3. Gestione Voci migliorata
-    let voices = speechSynthesis.getVoices();
-    let itVoice = voices.find(v => v.lang.includes('it-IT'));
-    if (itVoice) utterance.voice = itVoice;
-
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0; 
-
-    // 4. Esecuzione
-    speechSynthesis.speak(utterance);
-}
 
 // 1. Variabile per mantenere la voce
 let itVoice = null;
 
 // 2. Funzione per trovare la voce italiana (da eseguire subito)
 function loadItalianVoice() {
-    const voices = speechSynthesis.getVoices();
-    // Cerchiamo una voce che sia italiana al 100%
-    itVoice = voices.find(v => v.lang.includes('it-IT')) || 
-              voices.find(v => v.lang.startsWith('it'));
+    italianVoices = speechSynthesis.getVoices().filter(v => v.lang.includes("it"));
 }
 
+
 // Caricamento iniziale e gestione asincrona
-loadItalianVoice();
-if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = loadItalianVoice;
-}
+
 
 async function speakSyllables() {
     if (!currentWordData) return;
 
     window.speechSynthesis.cancel();
 
-    const isAndroid = /Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+    const syllablesToSpeak = getAudioSyllables();
 
-    let syllablesToSpeak = isAndroid
-        ? currentWordData.phoneticAndroid || currentWordData.phonetic || currentWordData.syllables
-        : currentWordData.phoneticPC || currentWordData.phonetic || currentWordData.syllables;
+    const userChoice = document.getElementById("voiceModeSelect")?.value || "auto";
+    const isAndroidMode = userChoice === "android" ||
+        (userChoice === "auto" && /Android/i.test(navigator.userAgent));
 
     syllablesToSpeak.forEach((syll, i) => {
         let sound = syll.toLowerCase().trim();
+
         if (sound.includes('gn')) sound = sound.replace('gn', 'gné');
         if (sound.includes('gli')) sound = sound.replace('gli', 'glì');
 
         const utter = new SpeechSynthesisUtterance(sound);
         utter.lang = "it-IT";
-        if (itVoice) utter.voice = itVoice;
 
-        utter.rate = isAndroid ? 0.6 : 0.9;
+        // 🔥 SEMPRE usare la voce scelta dall’utente
+        utter.voice = getSelectedVoice();
+
+        utter.rate = isAndroidMode ? 0.6 : 0.9;
 
         utter.onstart = () => {
             if (typeof highlightSyllable === "function") highlightSyllable(i);
@@ -128,72 +166,11 @@ async function speakSyllables() {
     });
 }
 
-function playSound(type) {
-    let src = "";
-
-    switch(type) {
-        case "success":
-            src = "audio/success.mp3"; /*funzione */
-            break;
-
-        case "wordError":
-            src = "audio/error_word.mp3"; /* non funziona */
-            break;
-
-        case "syllableError":
-            src = "audio/error_syllable.mp3"; /* funziona */
-            break;
-    }
-
-    const audio = new Audio(src);
-    audio.play().catch(err => console.log("Errore audio:", err));
-}
-
 
 // --- GESTIONE TRASCINAMENTO (MOUSE + LIM) ---
 let touchedElement = null; // elemento trascinato via touch
 
-function handleDropEffect(char, sourceId, bgColor, target, isTouch = false) {
-    const sourceEl = document.getElementById(sourceId);
 
-    if (target.textContent.trim() !== "") {
-        const oldChar = target.textContent.trim();
-        const oldSourceId = target.dataset.sourceId;
-        const oldBg = target.dataset.originalBg;
-
-        const oldOriginEl = document.getElementById(oldSourceId);
-        if (oldOriginEl) {
-            oldOriginEl.textContent = oldChar;
-            oldOriginEl.style.backgroundColor = oldBg || "#fdd835";
-        }
-    }
-
-    target.textContent = char;
-    target.style.backgroundColor = bgColor;
-    target.dataset.sourceId = sourceId;
-    target.dataset.originalBg = bgColor;
-
-    if (sourceEl) {
-        setTimeout(() => {
-            sourceEl.textContent = "";
-            sourceEl.style.backgroundColor = "white";
-        }, 0);
-    }
-
-    updateDisplayedText();
-}
-
-function setupDrop(target) {
-    // --- MOUSE ---
-    target.ondragover = e => e.preventDefault();
-    target.ondrop = e => {
-        const char = e.dataTransfer.getData("text");
-        const sourceId = e.dataTransfer.getData("sourceId");
-        const bgColor = e.dataTransfer.getData("bgColor");
-        handleDropEffect(char, sourceId, bgColor, target, false);
-    };
-
-}
 
 // Drag globali
 document.addEventListener("dragstart", e => {
@@ -262,36 +239,7 @@ document.addEventListener("touchend", e => {
     touchedElement.style.opacity = "1";
     touchedElement = null;
 });
-function generateSlots() {
-    const container = document.getElementById("slots");
-    container.innerHTML = "";
-    for (let i = 0; i < slotCount; i++) {
-        const slot = document.createElement("div");
-        slot.className = "slot";
-        slot.id = `slot-${i}`;
-        slot.draggable = true;
-        setupDrop(slot);
-        container.appendChild(slot);
-    }
-    updateDisplayedText();
-}
 
-function generateLetters() {
-    const container = document.getElementById("letters");
-    container.innerHTML = "";
-    const shuffled = [...currentWord].sort(() => Math.random() - 0.5);
-    shuffled.forEach((char, i) => {
-        const letter = document.createElement("div");
-        letter.className = "letter";
-        letter.textContent = uppercaseMode ? char.toUpperCase() : char.toLowerCase();
-        letter.draggable = true;
-        letter.id = `letter-${i}`;
-        setupDrop(letter);
-        container.appendChild(letter);
-    });
-	/*enableUniversalDrag();*/
-
-}
 
 function loadWord(index) {
     const entry = wordBank[index];      // parola corrente
@@ -470,58 +418,7 @@ document.getElementById("verifyBtn").onclick = () => {
 
 
 // --- Sillabazione ---
-function generateSyllableGrid() {
-    const area = document.getElementById("syllableArea");
-    area.innerHTML = "";
 
-    const entry = wordBank.find(w => w.word === currentWord);
-    if (!entry) return;
-
-    // 🔥 Riconoscimento Android
-    const isAndroid = /Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
-
-    // 🔥 Sillabazione corretta per dispositivo
-    const correctSyllables = isAndroid
-        ? entry.phoneticAndroid || entry.phonetic || entry.syllables
-        : entry.phoneticPC || entry.phonetic || entry.syllables;
-
-    if (!correctSyllables || !Array.isArray(correctSyllables)) return;
-
-    const letterCount = currentWord.length;
-    const separatorCount = correctSyllables.length - 1;
-    const totalCells = letterCount + separatorCount;
-
-    const grid = document.createElement("div");
-    grid.className = "syllable-grid";
-
-    for (let i = 0; i < totalCells; i++) {
-        const cell = document.createElement("div");
-        cell.className = "syllable-cell";
-        cell.id = `syll-cell-${i}`;
-        cell.draggable = true;
-        setupDrop(cell);
-        grid.appendChild(cell);
-    }
-
-    area.appendChild(grid);
-    createSeparatorSlot();
-
-    // Bottone aiuto
-    const helpBtn = document.createElement("button");
-    helpBtn.id = "syllHelpBtn";
-    helpBtn.textContent = "🎓";
-    helpBtn.style.fontSize = "28px";
-    helpBtn.style.marginRight = "30px";
-    helpBtn.style.display = "none";
-    helpBtn.onclick = () => showCorrectSyllabation();
-    area.appendChild(helpBtn);
-
-    const verifyBtn = document.createElement("button");
-    verifyBtn.textContent = "✅ Verifica sillabazione";
-    verifyBtn.className = "syllable-button";
-    verifyBtn.onclick = () => verifySyllabation(correctSyllables);
-    area.appendChild(verifyBtn);
-}
 
 function verifySyllabation(correctSyllables) {
     const cells = document.querySelectorAll(".syllable-cell");
@@ -578,97 +475,26 @@ function verifySyllabation(correctSyllables) {
 }
 
 
-function createSeparatorSlot() {
-    const area = document.getElementById("syllableArea");
 
-    const slot = document.createElement("div");
-    slot.className = "separator-slot";
-    slot.textContent = "/";
-    slot.draggable = true;
-    slot.id = "separator";
-    setupDrop(slot);
-
-    slot.addEventListener("dragend", () => {
-        setTimeout(() => {
-            if (!slot.textContent.trim()) {
-                slot.remove();
-                createSeparatorSlot();
-            }
-        }, 100);
-    });
-
-    area.appendChild(slot);
-}
-function verifySyllabation() {
-    const cells = document.querySelectorAll(".syllable-cell");
-    const sequence = Array.from(cells).map(c => c.textContent.trim()).filter(Boolean);
-
-    let current = "";
-    let groupIndices = [];
-    const groups = [];
-
-    for (let i = 0; i < sequence.length; i++) {
-        const char = sequence[i];
-        if (char === "/") {
-            if (current) {
-                groups.push({ text: current, indices: [...groupIndices] });
-                current = "";
-                groupIndices = [];
-            }
-        } else {
-            current += char;
-            groupIndices.push(i);
-        }
-    }
-    if (current) groups.push({ text: current, indices: [...groupIndices] });
-
-    const entry = wordBank.find(w => w.word === currentWord);
-    const correct = entry?.syllables || [];
-    const mascot = document.getElementById("mascot");
-
-    let allCorrect = true;
-
-    groups.forEach((group, i) => {
-        const isCorrect = group.text.toLowerCase() === (correct[i] || "").toLowerCase();
-        group.indices.forEach(idx => {
-            const cell = document.getElementById(`syll-cell-${idx}`);
-            cell.style.backgroundColor = isCorrect ? "#c8f7c5" : "#f8d7da";
-        });
-        if (!isCorrect) allCorrect = false;
-    });
-
-    const helpBtn = document.getElementById("syllHelpBtn");
-    if (allCorrect && groups.length === correct.length) {
-        showReward("syllable");
-        score += 2;
-        mascot.textContent = "🎊🐥 Sillabazione corretta!";
-        playSound("success");
-        if (helpBtn) helpBtn.style.display = "none";
-    } else {
-        score -= 1;
-        mascot.textContent = "😓🐥 Sillabazione errata.";
-        playSound("syllableError");
-        if (helpBtn) helpBtn.style.display = "inline-block";
-    }
-
-    updateScoreDisplay();
-    mascot.style.display = "block";
-    updateDisplayedText();
-}
 
 async function speakSyllablesSync(visualArray, audioArray, cells) {
-    if (!itVoice) loadItalianVoice();
     speechSynthesis.cancel();
 
     let currentCellIndex = 0;
 
-    for (let i = 0; i < visualArray.length; i++) {
+    for (let i = 0; i < audioArray.length; i++) {
         const visualSyllable = visualArray[i];
-        const audioSyllable = audioArray[i];
+        let sound = audioArray[i].toLowerCase().trim();
 
-        // VISUALIZZAZIONE
-        const letters = visualSyllable.split("");
-        letters.forEach(letter => {
+        if (sound.includes('gn')) sound = sound.replace('gn', 'gné');
+        if (sound.includes('gli')) sound = sound.replace('gli', 'glì');
+
+        const utter = new SpeechSynthesisUtterance(sound);
+        utter.lang = "it-IT";
+        utter.voice = getSelectedVoice();
+        utter.rate = 0.8;
+
+        visualSyllable.split("").forEach(letter => {
             if (cells[currentCellIndex]) {
                 cells[currentCellIndex].textContent = uppercaseMode ? letter.toUpperCase() : letter.toLowerCase();
                 cells[currentCellIndex].style.backgroundColor = "#c8f7c5";
@@ -676,32 +502,20 @@ async function speakSyllablesSync(visualArray, audioArray, cells) {
             }
         });
 
-        if (i < visualArray.length - 1 && cells[currentCellIndex]) {
+        if (i < audioArray.length - 1 && cells[currentCellIndex]) {
             cells[currentCellIndex].textContent = "/";
             cells[currentCellIndex].style.backgroundColor = "#fff8dc";
             currentCellIndex++;
         }
 
-        // PARLATO
-        let sound = audioSyllable.toLowerCase().trim();
-        const isPhoneticManual = currentWordData && currentWordData.phonetic;
-        if (!isPhoneticManual) {
-            if (sound.includes('gn')) sound = sound.replace('gn', 'gné');
-            if (sound.includes('gli')) sound = sound.replace('gli', 'glì');
-        }
-
-        const utter = new SpeechSynthesisUtterance(sound);
-        utter.voice = itVoice;
-        utter.lang = "it-IT";
-        utter.rate = 0.8;
-
-        speechSynthesis.speak(utter);
-
         await new Promise(resolve => {
             utter.onend = () => setTimeout(resolve, 10);
         });
+
+        speechSynthesis.speak(utter);
     }
 }
+
 
 
 async function showCorrectSyllabation() {
@@ -709,7 +523,16 @@ async function showCorrectSyllabation() {
     if (!entry) return;
     
     const visualSyllables = entry.syllables;
-    const audioSyllables = entry.phonetic || entry.syllables;
+
+    // 🔥 STESSA LOGICA DI speakSyllables PER LA FONETICA
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const isAndroid = /Android|Adr|Linux/i.test(ua);
+    const isAndroidPhone = isAndroid && /Mobile/i.test(ua);
+    const isAndroidTablet = isAndroid && !/Mobile/i.test(ua);
+
+    const audioSyllables = getAudioSyllables();
+
+
     const cells = document.querySelectorAll(".syllable-cell");
 
     // Pulizia e backup
@@ -718,23 +541,20 @@ async function showCorrectSyllabation() {
 
     // --- LOGICA PER TABLET: Non usiamo await nel ciclo ---
     speechSynthesis.cancel();
-    let delayAccumulato = 0;
 
     visualSyllables.forEach((visSyll, i) => {
         const audioSyll = audioSyllables[i];
-        
-        // Creiamo l'utterance
+        if (!audioSyll) return;
+
         const utter = new SpeechSynthesisUtterance(audioSyll.toLowerCase());
         utter.lang = "it-IT";
         utter.rate = 0.8;
-        if (itVoice) utter.voice = itVoice;
+        utter.voice = getSelectedVoice();
 
-        // Quando la sillaba parte, mostriamo le lettere
         utter.onstart = () => {
-            let currentCellIndex = 0;
-            // Calcoliamo dove inserire le lettere per questa sillaba
-            let offset = visualSyllables.slice(0, i).join("").length + i; 
-            
+            // Calcolo offset celle per questa sillaba
+            const offset = visualSyllables.slice(0, i).join("").length + i;
+
             visSyll.split("").forEach((char, charIdx) => {
                 const targetCell = cells[offset + charIdx];
                 if (targetCell) {
@@ -743,7 +563,6 @@ async function showCorrectSyllabation() {
                 }
             });
 
-            // Se c'è una barra dopo questa sillaba
             const sepCell = cells[offset + visSyll.length];
             if (sepCell && i < visualSyllables.length - 1) {
                 sepCell.textContent = "/";
@@ -754,7 +573,6 @@ async function showCorrectSyllabation() {
         speechSynthesis.speak(utter);
     });
 
-    // Ripristino dopo 3 secondi (stima del tempo totale)
     setTimeout(() => {
         cells.forEach((cell, i) => {
             if (backup[i]) {
@@ -765,6 +583,7 @@ async function showCorrectSyllabation() {
         updateDisplayedText();
     }, 4000);
 }
+
 
 // --- Shuffle array
 function shuffleArray(array) {
@@ -834,43 +653,6 @@ function enableUniversalDrag() {
 }
 
 
-// --- Inizializzazione gioco
-function initGame() {
-    // 1. Mischia e prepara il gioco
-    wordBank = shuffleArray(wordBank);
-    currentBatchStart = 0;
-    renderWordBatch();
-    addNavigationButtons();
-    
-    // 2. Forza il caricamento delle voci (essenziale per Android)
-    speechSynthesis.getVoices();
-
-    // 3. Gestione BOTTONE ASCOLTA (Spostiamola qui dentro per sicurezza)
-    const lb = document.getElementById("listenBtn");
-    if (lb) {
-        lb.onpointerdown = (e) => {
-            e.stopPropagation(); // Ferma il Drag
-            speak(currentWord);
-        };
-    }
-
-    // 4. Gestione PRONUNCIA SILLABE
-    const syllBtn = document.getElementById("syllableSpeakBtn");
-    
-}
-
-window.onload = initGame;
-
-// --- Maiuscole / minuscole
-function updateDisplayedText() {
-    document.querySelectorAll(".letter, .slot, .syllable-cell").forEach(el => {
-        if (el.textContent.trim()) {
-            el.textContent = uppercaseMode
-                ? el.textContent.toUpperCase()
-                : el.textContent.toLowerCase();
-        }
-    });
-}
 
 // Funzione per sbloccare l'audio su Tablet/Smartphone
 function resumeAudioContext() {
@@ -892,19 +674,9 @@ document.addEventListener('touchstart', resumeAudioContext);
 
 
 // 🌐 Imposta le voci italiane per speechSynthesis
-speechSynthesis.onvoiceschanged = () => {
-    italianVoices = speechSynthesis.getVoices().filter(v => v.lang === "it-IT");
-};
+speechSynthesis.onvoiceschanged = populateVoiceList;
 
-function getSelectedVoice() {
-    const selected = document.getElementById("voiceSelect").value;
-    const isMale = selected === "maschio";
-    const match = italianVoices.find(v =>
-        isMale ? /luciano|male|fred|paolo/i.test(v.name)
-               : /serena|silvia|female|francesca/i.test(v.name)
-    );
-    return match || italianVoices[0];
-}
+
 
 function speak(text) {
     if (!text) return;
@@ -913,8 +685,7 @@ function speak(text) {
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "it-IT";
-    if (itVoice) utterance.voice = itVoice;
-
+    utterance.voice = getSelectedVoice();
     utterance.rate = 0.9;
     utterance.pitch = 1.0;
 
@@ -923,87 +694,7 @@ function speak(text) {
 
 
 
-// 2. Funzione per trovare la voce italiana (da eseguire subito)
-function loadItalianVoice() {
-    const voices = speechSynthesis.getVoices();
-    // Cerchiamo una voce Google italiana
-    itVoice = voices.find(v =>
-        v.lang.includes('it-IT') && v.name.toLowerCase().includes('google')
-    ) || voices.find(v => v.lang.includes('it-IT')) ||
-      voices.find(v => v.lang.startsWith('it'));
-}
 
-
-// Caricamento iniziale e gestione asincrona
-loadItalianVoice();
-if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = loadItalianVoice;
-}
-
-async function speakSyllables() {
-    if (!currentWordData) {
-        console.warn("⚠️ currentWordData NON definito");
-        return;
-    }
-
-    // Stop di qualsiasi parlato precedente
-    window.speechSynthesis.cancel();
-
-    // --- User Agent robusto ---
-    const ua = navigator.userAgent || navigator.vendor || window.opera;
-
-    // --- Rilevamento Android affidabile ---
-    const isAndroid = /Android|Adr|Linux/i.test(ua);
-    const isAndroidPhone = isAndroid && /Mobile/i.test(ua);
-    const isAndroidTablet = isAndroid && !/Mobile/i.test(ua);
-    const isPC = !isAndroid;
-
-    let syllablesToSpeak;
-
-    // --- Scelta fonetica corretta ---
-    if (isAndroidPhone || isAndroidTablet) {
-        syllablesToSpeak =
-            currentWordData.phoneticAndroid ||
-            currentWordData.phonetic ||
-            currentWordData.syllables;
-
-        console.log("📱➡️ Modalità Android:", syllablesToSpeak);
-
-    } else {
-        syllablesToSpeak =
-            currentWordData.phoneticPC ||
-            currentWordData.phonetic ||
-            currentWordData.syllables;
-
-        console.log("🖥️➡️ Modalità PC:", syllablesToSpeak);
-    }
-
-    // --- Lettura sillabe ---
-    syllablesToSpeak.forEach((syll, i) => {
-        let sound = syll.toLowerCase().trim();
-
-        // Fix universali GN/GLI
-        if (sound.includes('gn')) sound = sound.replace('gn', 'gné');
-        if (sound.includes('gli')) sound = sound.replace('gli', 'glì');
-
-        const utter = new SpeechSynthesisUtterance(sound);
-        utter.lang = "it-IT";
-
-        if (itVoice) utter.voice = itVoice;
-
-        // Velocità differenziata
-        utter.rate = (isAndroidPhone || isAndroidTablet) ? 0.6 : 0.9;
-
-        // Evidenziazione sillaba se presente la funzione
-        utter.onstart = () => {
-            if (typeof highlightSyllable === "function") {
-                highlightSyllable(i);
-            }
-        };
-
-        window.speechSynthesis.speak(utter);
-    });
-}
 
 
 function playSound(type) {
@@ -1530,126 +1221,8 @@ function verifySyllabation() {
     mascot.style.display = "block";
     updateDisplayedText();
 }
-async function speakSyllablesSync(visualArray, audioArray, cells) {
-    if (!itVoice) loadItalianVoice();
-    speechSynthesis.cancel();
 
-    let currentCellIndex = 0;
 
-    for (let i = 0; i < visualArray.length; i++) {
-        const visualSyllable = visualArray[i];
-        const audioSyllable = audioArray[i];
-        
-        // --- 1. VISUALIZZAZIONE ---
-        const letters = visualSyllable.split("");
-        letters.forEach(letter => {
-            if (cells[currentCellIndex]) {
-                cells[currentCellIndex].textContent = uppercaseMode ? letter.toUpperCase() : letter.toLowerCase();
-                cells[currentCellIndex].style.backgroundColor = "#c8f7c5";
-                currentCellIndex++;
-            }
-        });
-
-        // Separatore visivo
-        if (i < visualArray.length - 1 && cells[currentCellIndex]) {
-            cells[currentCellIndex].textContent = "/";
-            cells[currentCellIndex].style.backgroundColor = "#fff8dc";
-            currentCellIndex++;
-        }
-
-        // --- 2. PARLATO ---
-        let sound = audioSyllable.toLowerCase().trim();
-        
-        // Correzioni fonetiche automatiche (se non c'è phonetic manuale)
-        const isPhoneticManual = currentWordData && currentWordData.phonetic;
-        if (!isPhoneticManual) {
-            if (sound.includes('gn')) sound = sound.replace('gn', 'gné');
-            if (sound.includes('gli')) sound = sound.replace('gli', 'glì');
-        }
-
-        const utter = new SpeechSynthesisUtterance(sound); // Niente punteggiatura qui!
-        utter.voice = itVoice;
-        utter.lang = "it-IT";
-        utter.rate = 0.8; // Più veloce (era 0.6)
-
-        speechSynthesis.speak(utter);
-
-        // --- 3. ATTESA SINCRONIZZATA ---
-        await new Promise(resolve => {
-            utter.onend = () => {
-                // 10ms è quasi istantaneo. Se vuoi un minimo di stacco usa 50.
-                setTimeout(resolve, 10); 
-            };
-        });
-    }
-}
-
-async function showCorrectSyllabation() {
-    const entry = wordBank.find(w => w.word === currentWord);
-    if (!entry) return;
-    
-    const visualSyllables = entry.syllables;
-
-    // 🔥 STESSA LOGICA DI speakSyllables PER LA FONETICA
-    const ua = navigator.userAgent || navigator.vendor || window.opera;
-    const isAndroid = /Android|Adr|Linux/i.test(ua);
-    const isAndroidPhone = isAndroid && /Mobile/i.test(ua);
-    const isAndroidTablet = isAndroid && !/Mobile/i.test(ua);
-
-    const audioSyllables = (isAndroidPhone || isAndroidTablet)
-        ? (entry.phoneticAndroid || entry.phonetic || entry.syllables)
-        : (entry.phoneticPC || entry.phonetic || entry.syllables);
-
-    const cells = document.querySelectorAll(".syllable-cell");
-
-    // Pulizia e backup
-    const backup = Array.from(cells).map(c => ({ text: c.textContent, bg: c.style.backgroundColor }));
-    cells.forEach(cell => { cell.textContent = ""; cell.style.backgroundColor = ""; });
-
-    // --- LOGICA PER TABLET: Non usiamo await nel ciclo ---
-    speechSynthesis.cancel();
-
-    visualSyllables.forEach((visSyll, i) => {
-        const audioSyll = audioSyllables[i];
-        if (!audioSyll) return;
-
-        const utter = new SpeechSynthesisUtterance(audioSyll.toLowerCase());
-        utter.lang = "it-IT";
-        utter.rate = 0.8;
-        if (itVoice) utter.voice = itVoice;
-
-        utter.onstart = () => {
-            // Calcolo offset celle per questa sillaba
-            const offset = visualSyllables.slice(0, i).join("").length + i;
-
-            visSyll.split("").forEach((char, charIdx) => {
-                const targetCell = cells[offset + charIdx];
-                if (targetCell) {
-                    targetCell.textContent = uppercaseMode ? char.toUpperCase() : char.toLowerCase();
-                    targetCell.style.backgroundColor = "#c8f7c5";
-                }
-            });
-
-            const sepCell = cells[offset + visSyll.length];
-            if (sepCell && i < visualSyllables.length - 1) {
-                sepCell.textContent = "/";
-                sepCell.style.backgroundColor = "#fff8dc";
-            }
-        };
-
-        speechSynthesis.speak(utter);
-    });
-
-    setTimeout(() => {
-        cells.forEach((cell, i) => {
-            if (backup[i]) {
-                cell.textContent = backup[i].text;
-                cell.style.backgroundColor = backup[i].bg;
-            }
-        });
-        updateDisplayedText();
-    }, 4000);
-}
 
 
 // --- Shuffle array
@@ -1728,6 +1301,7 @@ function initGame() {
     
     // 2. Forza il caricamento delle voci (essenziale per Android)
     speechSynthesis.getVoices();
+	populateVoiceList();
 
     // 3. Gestione BOTTONE ASCOLTA (VERSIONE CORRETTA PER TABLET)
     const lb = document.getElementById("listenBtn");
@@ -1747,6 +1321,8 @@ function initGame() {
         });
     }
 }
+
+window.onload = initGame;
 
 // --- Maiuscole / minuscole
 function updateDisplayedText() {
@@ -1772,16 +1348,6 @@ function updateLetterImage() {
     letterEl.src = `letters/${fileName}`;
 }
 
-
-// --- Reward visivo
-function showReward(type) {
-    const reward = document.createElement("div");
-    reward.className = "visual-reward";
-    reward.textContent = type === "word" ? "🌟 Benissimo! 🌟" : "🧩 Super! 🧩";
-    document.body.appendChild(reward);
-
-    setTimeout(()=> reward.remove(), 2000);
-}
 
 // --- Blocca menu contestuale (tocco prolungato)
 document.addEventListener('contextmenu', e => e.preventDefault());

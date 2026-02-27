@@ -59,6 +59,12 @@ body {
   font-size: 16px;
 }
 
+#voiceSelect {
+  width: 100px;
+  padding: 4px;
+  font-size: 14px;
+}
+
 #listenBtn {
   padding: 10px 30px;
   font-size: 18px;
