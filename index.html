@@ -9,6 +9,25 @@
 </head>
 <body>
 
+<button id="backBtn"
+style="
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 99999;
+    padding: 12px 16px;
+    font-size: 20px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    cursor: pointer;
+    display: none;
+">
+⬅️ Torna al sito
+</button>
+
+
   <input type="file" id="wordJsonLoader" accept=".json" />
 
   <h2 id="wordTitle">Componi la parola</h2>
@@ -256,6 +275,32 @@
       }
     });
   </script>
+
+<script>
+// Legge i parametri dell'URL
+const params = new URLSearchParams(window.location.search);
+
+// Se il gioco è stato aperto da Google Sites
+if (params.get("from") === "sites") {
+    document.getElementById("backBtn").style.display = "block";
+}
+
+// URL del tuo Google Sites
+const returnURL = "https://sites.google.com/view/il-mio-primo-sito-wigor2869/test2";
+
+// Quando clicchi il bottone
+document.getElementById("backBtn").addEventListener("click", () => {
+
+    // Prova a chiudere la scheda
+    window.close();
+
+    // Se non può chiudersi → torna al sito
+    setTimeout(() => {
+        window.location.href = returnURL;
+    }, 200);
+});
+</script>
+
 
 </body>
 </html>
