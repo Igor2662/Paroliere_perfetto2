@@ -27,6 +27,23 @@ style="
 ⬅️ Torna al sito
 </button>
 
+<button id="fsBtn"
+style="
+    position: fixed;
+    bottom: 70px;
+    left: 20px;
+    z-index: 99999;
+    padding: 12px 16px;
+    font-size: 20px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    cursor: pointer;
+">
+⛶ Fullscreen
+</button>
+
 
   <input type="file" id="wordJsonLoader" accept=".json" />
 
@@ -300,6 +317,14 @@ document.getElementById("backBtn").addEventListener("click", () => {
     }, 200);
 });
 </script>
+
+<script>
+// Bottone fullscreen
+document.getElementById("fsBtn").addEventListener("click", () => {
+    document.documentElement.requestFullscreen();
+});
+</script>
+
 
 
 </body>
