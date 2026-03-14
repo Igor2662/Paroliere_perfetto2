@@ -6,8 +6,26 @@
 
   <title>Costruisci la Parola</title>
   <link rel="stylesheet" href="style.css">
+  
+<style>
+/* codice CSS per adattare il gioco alla grandezza dello schermo */
+#gameWrapper {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 1600px;   /* larghezza originale del gioco */
+    height: 900px;   /* altezza originale del gioco */
+    transform-origin: top center;
+}
+</style>
+  
+  
 </head>
 <body>
+
+
+<div id="gameWrapper"> 
+
 
 <button id="backBtn"
 style="
@@ -325,6 +343,29 @@ document.getElementById("fsBtn").addEventListener("click", () => {
 });
 </script>
 
+<script>
+function scaleGame() {
+    const wrapper = document.getElementById("gameWrapper");
+
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+
+    const gameW = 1600;
+    const gameH = 900;
+
+    // Calcolo del miglior fattore di scala
+    const scale = Math.min(screenW / gameW, screenH / gameH);
+
+    wrapper.style.transform = `translateX(-50%) scale(${scale})`;
+}
+
+window.addEventListener("load", scaleGame);
+window.addEventListener("resize", scaleGame);
+window.addEventListener("orientationchange", scaleGame);
+</script>
+
+
+</div>
 
 
 </body>
