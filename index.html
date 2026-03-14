@@ -343,26 +343,6 @@ document.getElementById("fsBtn").addEventListener("click", () => {
 });
 </script>
 
-<script>
-function scaleGame() {
-    const wrapper = document.getElementById("gameWrapper");
-
-    const screenW = window.innerWidth;
-    const screenH = window.innerHeight;
-
-    const gameW = 1600;
-    const gameH = 900;
-
-    // Calcolo del miglior fattore di scala
-    const scale = Math.min(screenW / gameW, screenH / gameH);
-
-    wrapper.style.transform = `translateX(-50%) scale(${scale})`;
-}
-
-window.addEventListener("load", scaleGame);
-window.addEventListener("resize", scaleGame);
-window.addEventListener("orientationchange", scaleGame);
-</script>
 
 
 </div>
